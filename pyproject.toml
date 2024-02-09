@@ -11,7 +11,7 @@ homepage = "https://github.com/djrobstep/schemainspect"
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4"
-sqlalchemy = "*"
+sqlalchemy = "<2"
 
 [tool.poetry.dev-dependencies]
 sqlbag = ">=0.1.1616028516"
