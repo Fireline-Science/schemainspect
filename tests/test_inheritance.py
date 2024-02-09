@@ -11,6 +11,26 @@ create table parent (t timestamp);
 create table child (a integer, b integer) inherits (parent);
 """
 
+COMPLEX_INHERITANCE = """
+
+CREATE TABLE products (
+    product_id SERIAL PRIMARY KEY,
+    product_name VARCHAR(255) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL
+);
+
+CREATE VIEW product_listings AS
+SELECT product_id, product_name, price
+FROM products;
+
+CREATE OR REPLACE FUNCTION get_product_listings()
+RETURNS SETOF product_listings AS $$
+BEGIN
+    RETURN QUERY SELECT * FROM product_listings;
+END;
+$$ LANGUAGE plpgsql;
+"""
+
 
 def test_inheritance(db):
     with S(db) as s:
@@ -65,3 +85,25 @@ def test_table_dependency_order(db):
             '"public"."normal"',
             '"public"."child"',
         ]
+
+def test_complex_inheritance(db):
+    with S(db) as s:
+        s.execute(COMPLEX_INHERITANCE)
+
+        ii = get_inspector(s)
+
+        assert list(ii.tables.keys()) == [
+            '"public"."products"'
+        ]
+
+        assert list(ii.functions.keys()) == [
+            '"public"."get_product_listings"()',
+        ]
+
+        assert list(ii.views.keys()) == [
+            '"public"."product_listings"',
+        ]
+
+        ## Assert that the function depends on the view and the view depends on the table
+        assert ii.functions['"public"."get_product_listings"()'].dependent_on == ['"public"."product_listings"']
+        assert ii.views['"public"."product_listings"'].dependent_on == ['"public"."products"']

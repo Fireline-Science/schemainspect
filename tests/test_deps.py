@@ -1,3 +1,4 @@
+import pytest
 from sqlbag import S
 
 from schemainspect import get_inspector
@@ -95,6 +96,66 @@ create view v as select * from t;
         assert i.enums[e].dependents == [t, v]
         assert e in i.selectables[t].dependent_on
         assert e in i.selectables[v].dependent_on
+
+
+def test_view_deps(db):
+    VIEW_DEP_SAMPLE = """\
+create table foo
+(
+    id   serial primary key,
+    name text
+);
+
+create or replace
+    function f()
+    returns setof foo
+    security invoker
+    language sql
+as
+$$
+select *
+from foo
+where true;
+$$;
+
+create or replace view f_v with (security_invoker) as
+select *
+from f()
+where true
+;
+
+comment on view f_v is 'my comment';
+
+"""
+
+    with S(db) as s:
+        i = get_inspector(s)
+
+        if i.pg_version < 15:
+            pytest.skip("views cannot have options before pg15")
+
+        s.execute(VIEW_DEP_SAMPLE)
+
+        i = get_inspector(s)
+
+        foo = '"public"."foo"'
+        f = '"public"."f"()'
+        f_v = '"public"."f_v"'
+        co = 'view "public"."f_v"'
+
+        assert foo in i.tables
+        assert f in i.functions
+        assert f_v in i.views
+        assert co in i.comments
+
+        assert i.tables[foo].dependents == [f, f_v, co]
+        assert i.tables[foo].dependent_on == []
+        assert i.functions[f].dependents == [f_v, co]
+        assert i.functions[f].dependent_on == [foo]
+        assert i.views[f_v].dependents == [co]
+        assert i.views[f_v].dependent_on == [f, foo]
+
+        assert i.views[f_v].comment == 'my comment'
 
 
 def test_relationships(db):
