@@ -49,3 +49,4 @@ tests/test_local_*
 scratch
 
 .vscode
+.idea
