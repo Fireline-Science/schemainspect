@@ -1025,6 +1025,9 @@ class InspectedComment(Inspected):
             identity_arguments=self.args,
         )
 
+    def can_replace(self, other):
+        return True
+
     @property
     def is_table(self):
         return False
