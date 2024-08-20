@@ -46,7 +46,10 @@ things1 as (
   select
     oid,
     typnamespace as namespace,
-    typname as name,
+    CASE
+        WHEN typcategory = 'A' AND typname LIKE '\_%' THEN SUBSTRING(typname FROM 2)
+        ELSE typname
+    END as name,
     null as identity_arguments,
     't' as kind,
     null as rel_object_type
